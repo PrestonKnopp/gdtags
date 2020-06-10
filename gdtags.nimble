@@ -10,4 +10,4 @@ bin           = @["gdtags"]
 # Dependencies
 
 requires "nim >= 1.2.0"
-requires "nimterop >= 0.4.4"
+requires "nimterop 0.4.4"
