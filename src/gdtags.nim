@@ -213,6 +213,7 @@ proc processFile(file: string) =
           let enumTag = enumNode.firstChildNamed("identifier").text(source)
           let pattern = enumNode.firstLineSourceText()
           let lineNum = enumNode.startPoint.row.int.succ
+          let startByte = enumNode.startByte
           let fields = newOrderedTable[Field, string]()
 
           fields.add kind, nodeTypeKindMap["enumerator"]
@@ -225,7 +226,7 @@ proc processFile(file: string) =
           if tag != "":
             fields.add fEnum, tag
 
-          tags.add file, enumTag, pattern, lineNum, fields
+          tags.add file, enumTag, pattern, lineNum, startByte, fields
 
         # enumDefs can be anonymous so the tag will be empty.  The other tag
         # kinds shouldn't be whitespace so only check it here.
@@ -252,7 +253,7 @@ proc processFile(file: string) =
         let body = node.firstChildNamed("body")
         processSource body, joinNamespace(namespace, tag)
 
-      tags.add file, tag, pattern, node.startPoint.row.int.succ, fields
+      tags.add file, tag, pattern, node.startPoint.row.int.succ, node.startByte, fields
 
   if not opts.omitClassName:
     let classNameStmt = root.firstChildNamed("class_name_statement")
@@ -260,7 +261,7 @@ proc processFile(file: string) =
       let stmtText = classNameStmt.firstLineSourceText()
       let className = classNameStmt.firstChildNamed("name").text(source)
       let lineNum = classNameStmt.startPoint.row.int.succ
-      tags.add file, className, stmtText, lineNum, {kind: "class"}.newOrderedTable
+      tags.add file, className, stmtText, lineNum, classNameStmt.startByte, {kind: "class"}.newOrderedTable
 
   processSource root
 

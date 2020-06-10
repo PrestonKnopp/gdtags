@@ -2,7 +2,7 @@ import tables, strutils, strformat, algorithm, json
 
 type
   FormatKind* = enum
-    fJson, fCtags
+    fJson, fCtags, fEtags
 
   Field* = enum
     kind, lineNum,
@@ -14,6 +14,7 @@ type
     name: string
     pattern: string
     lineNum: int
+    byteOffset: uint32
     fields: OrderedTableRef[Field, string]
 
   TagGen* = ref object
@@ -40,8 +41,8 @@ const
     fEnum: "enum",
   ]
 
-proc add*(gen: TagGen, path, name, pattern: string, lineNum: int, fields: OrderedTableRef[Field, string]): void =
-  gen.lines.add (path, name, pattern, lineNum, fields,)
+proc add*(gen: TagGen, path, name, pattern: string, lineNum: int, byteOffset: uint32, fields: OrderedTableRef[Field, string]): void =
+  gen.lines.add (path, name, pattern, lineNum, byteOffset, fields,)
 
 proc genCtags(gen: TagGen): string =
   result = ""
@@ -64,6 +65,37 @@ proc genCtags(gen: TagGen): string =
     result.add &"\tline:{line.lineNum}"
     result.add "\n"
 
+# See: https://en.wikipedia.org/wiki/Ctags#Etags
+#
+# Etags format:
+#
+# 1. The section header
+# 
+# \x0c
+# {src_file},{size_of_tag_definition_data_in_bytes}
+#
+# 2. Tag definitions
+#
+# {tag_definition_text}\x7f{tagname}\x01{line_number},{byte_offset}
+#
+# Note: The size of tag definition data is the total number of bytes
+# of all the tag definitions including new lines.
+proc genEtags(gen: TagGen): string =
+  var
+    currentSectionPath: string
+    tagDataDefinitions: string
+  for line in gen.lines:
+    if currentSectionPath != line.path:
+      if not currentSectionPath.isEmptyOrWhitespace:
+        # commit tag data
+        result.add "\x0c\n"
+        result.add &"{currentSectionPath},{tagDataDefinitions.len}\n"
+        result.add tagDataDefinitions
+      currentSectionPath = line.path
+      tagDataDefinitions = ""
+
+    tagDataDefinitions.add &"{line.pattern}\x7f{line.name}\x01{line.lineNum},{line.byteOffset}\n"
+
 proc genJson(gen: TagGen): string =
   for line in gen.lines:
     var lineJson = %* {
@@ -79,17 +111,20 @@ proc genJson(gen: TagGen): string =
     result.add $lineJson & "\n"
 
 proc gen*(gen: TagGen, formatKind: FormatKind, sorted: bool=true): string =
-  if sorted:
+  # Sorting tags is ignored for emacs etags.
+  if sorted and not (formatKind == fEtags):
     gen.lines.sort proc (x, y: TagLineInfo): int =
       x.name.cmp y.name
   if formatKind == fJson:
-    gen.genJson
+    gen.genJson()
+  elif formatKind == fEtags:
+    gen.genEtags()
   else:
-    gen.genCtags
+    gen.genCtags()
 
 when isMainModule:
   var tags = TagGen()
-  tags.add "path", "name", "line", 84, {
+  tags.add "path", "name", "line", 84, 0, {
     kind: "function",
     scope: "scope",
     scopeKind: "scopeKind",
@@ -97,3 +132,4 @@ when isMainModule:
   }.newOrderedTable
   echo tags.genJson()
   echo tags.genCtags()
+  echo tags.genEtags()
