@@ -9,7 +9,7 @@ type
     scopeKind, scope,
     signature, fEnum
 
-  TagLineInfo = tuple
+  TagLineInfo = object
     path: string
     name: string
     pattern: string
@@ -42,12 +42,37 @@ const
   ]
 
 proc add*(gen: TagGen, path, name, pattern: string, lineNum: int, byteOffset: uint32, fields: OrderedTableRef[Field, string]): void =
-  gen.lines.add (path, name, pattern, lineNum, byteOffset, fields,)
+  gen.lines.add TagLineInfo(
+    path: path,
+    name: name,
+    pattern: pattern,
+    lineNum: lineNum,
+    byteOffset: byteOffset,
+    fields: fields
+  )
+
+proc escapePattern(s: string): string =
+  s.multiReplace(
+    ("\\", "\\\\"),
+    ("/", "\\/"),
+    ("$", "\\$"),
+    ("^", "\\^"),
+  )
+
+proc escapeSignatureField(fields: OrderedTableRef) =
+  if signature in fields:
+    fields[signature] = fields[signature].multiReplace(
+      ("\n", " "),
+      ("\t", ""),
+      ("\\", ""),
+    )
 
 proc genCtags(gen: TagGen): string =
   result = ""
   for line in gen.lines:
-    result.add &"{line.name}\t{line.path}\t/^{line.pattern}$/;\""
+    let pattern = line.pattern.escapePattern
+    line.fields.escapeSignatureField
+    result.add &"{line.name}\t{line.path}\t/^{pattern}$/;\""
     for k, v in line.fields:
       case k:
       of kind:
@@ -98,11 +123,13 @@ proc genEtags(gen: TagGen): string =
 
 proc genJson(gen: TagGen): string =
   for line in gen.lines:
+    let pattern = line.pattern.escapePattern
+    line.fields.escapeSignatureField
     var lineJson = %* {
       "_type": "tag",
       "name": line.name,
       "path": line.path,
-      "pattern": "/^" & line.pattern & "$/",
+      "pattern": "/^" & pattern & "$/",
       "line": line.lineNum,
     }
     for key, val in line.fields:

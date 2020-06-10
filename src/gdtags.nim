@@ -181,19 +181,7 @@ proc processFile(file: string) =
       endIdx = source.find('\n', endIdx) - 1
       if endIdx < 0: endIdx = source.high
 
-      source.substr(startIdx, endIdx).multiReplace(
-        ("\\", "\\\\"),
-        ("/", "\\/"),
-        ("$", "\\$"),
-        ("^", "\\^"),
-      )
-
-  proc escapeSignature(s: string): string =
-    s.multiReplace(
-      ("\n", " "),
-      ("\t", ""),
-      ("\\", ""),
-    )
+      source.substr(startIdx, endIdx)
 
   proc processSource(rootNode: Node, namespace: string="") =
     for node, nodeType in rootNode.childrenWithNames(nodeTypeKeys):
@@ -222,7 +210,7 @@ proc processFile(file: string) =
             fields.add scopeKind, "enumDef"
             fields.add scope, enumNamespace
           if enumNode.namedChildCount > 1:
-            fields.add signature, " = " & enumNode.namedChild(1).text(source).escapeSignature
+            fields.add signature, " = " & enumNode.namedChild(1).text(source)
           if tag != "":
             fields.add fEnum, tag
 
@@ -236,7 +224,7 @@ proc processFile(file: string) =
       of "signal_statement":
         let identListNode = node.firstChildNamed("identifier_list")
         if not identListNode.isNil:
-          fields.add signature, escapeSignature("(" & identListNode.text(source) & ")")
+          fields.add signature, "(" & identListNode.text(source) & ")"
 
       of "function_definition":
         let parametersNode = node.firstChildNamed("parameters")
@@ -247,7 +235,7 @@ proc processFile(file: string) =
         if not returnTypeNode.isNil:
           sig.add " " & returnTypeNode.text(source)
         if sig != "":
-          fields.add signature, sig.escapeSignature
+          fields.add signature, sig
 
       of "class_definition":
         let body = node.firstChildNamed("body")
