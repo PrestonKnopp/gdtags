@@ -24,13 +24,16 @@ OPTIONS
         The pattern is tested after an --exclude pattern succeeded. It tests
         first the full path of a file then just the file name.
         This option can be specified multiple times.
-    --output-format=ctags|json                                  [default: ctags]
-        Specify the output format. json format can be used for programs such as
-        vista.vim.
+    --output-format=ctags|etags|json                            [default: ctags]
+        Specify the output format.
+        Use etags format to generate tags for emacs.
+        json format can be used for programs such as vista.vim.
     --json                                                            [default:]
         Shorthand for --output-format=json.
         Note: vista.vim looks for "--output-format=json" in the command to
         determine parser.
+    --emacs
+        Shorthand for --output-format=etags.
     -u                                                                [default:]
         Equivalent to --sort=no
     --sort=yes|no                                                 [default: yes]
@@ -87,11 +90,14 @@ for opt in getopt():
     of "sort": opts.sorted = opt.val.parseBool
     of "omit-class-name": opts.omitClassName = true
     of "json": opts.format = fJson
+    of "emacs": opts.format = fEtags
     of "output-format":
       if opt.val == "json":
         opts.format = fJson
       elif opt.val == "ctags":
         opts.format = fCtags
+      elif opt.val == "etags":
+        opts.format = fEtags
       else:
         eecho "Unknown format: ", opt.val
         eecho "Valid formats are: ctags, json"
