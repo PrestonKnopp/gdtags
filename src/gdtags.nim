@@ -1,3 +1,5 @@
+const version = "v0.1.0"
+
 const help = """
 USAGE
     gdtags [options] [<file>...]
@@ -42,6 +44,8 @@ OPTIONS
     --omit-class-name                                                 [default:]
         Omit generating a tag for class name. You should specify this for
         programs like vista or tagbar to better display symbol hierarchy.
+    --version                                                         [default:]
+        Print version and then exit.
     -h,--help,-?
         Print this help and then exit."""
 
@@ -102,6 +106,9 @@ for opt in getopt():
         eecho "Unknown format: ", opt.val
         eecho "Valid formats are: ctags, json"
         quit QuitFailure
+    of "version":
+        echo version
+        quit QuitSuccess
     of "?", "h", "help":
       echo help
       quit QuitSuccess
