@@ -109,17 +109,23 @@ proc genEtags(gen: TagGen): string =
   var
     currentSectionPath: string
     tagDataDefinitions: string
+
+  proc commitTagData(res: var string) =
+    res.add "\x0c\n"
+    res.add &"{currentSectionPath},{tagDataDefinitions.len}\n"
+    res.add tagDataDefinitions
+
   for line in gen.lines:
     if currentSectionPath != line.path:
       if not currentSectionPath.isEmptyOrWhitespace:
-        # commit tag data
-        result.add "\x0c\n"
-        result.add &"{currentSectionPath},{tagDataDefinitions.len}\n"
-        result.add tagDataDefinitions
+        result.commitTagData()
       currentSectionPath = line.path
       tagDataDefinitions = ""
 
     tagDataDefinitions.add &"{line.pattern}\x7f{line.name}\x01{line.lineNum},{line.byteOffset}\n"
+
+  if not currentSectionPath.isEmptyOrWhitespace:
+    result.commitTagData()
 
 proc genJson(gen: TagGen): string =
   for line in gen.lines:
