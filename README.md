@@ -16,18 +16,23 @@ Recursively generate tags for a directory:
 
     gdtags -R # current directory
     gdtags -R /path/to/directory
+    gdtags --emacs -R # current directory
+    gdtags --emacs -R /path/to/directory
 
 Recursively generate tags for a directory but skip addons:
 
     gdtags -R --exclude='^\./addons'
+    gdtags --emacs -R --exclude='^\./addons'
 
 Recursively generate tags for a directory and skip addons except your addon:
 
     gdtags -R --exclude='^\./addons' --exclude-exception='^\./addons/okay'
+    gdtags --emacs -R --exclude='^\./addons' --exclude-exception='^\./addons/okay'
 
 Generate tags for a file:
 
     gdtags file
+    gdtags --emacs file
 
 Generate tags for [vista.vim](https://github.com/liuchengxu/vista.vim):
 
