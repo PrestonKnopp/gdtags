@@ -38,3 +38,20 @@ Generate tags for [vista.vim](https://github.com/liuchengxu/vista.vim):
 
     # omit class name tags for better looking presentation
     gdtags --sort=no --omit-class-name --output-format=json
+
+Use with [Tagbar](https://github.com/preservim/tagbar): (put this into your vim config)
+
+    let g:tagbar_type_gdscript = {
+                \'ctagsbin': 'gdtags',
+                \'ctagsargs': ['--omit-class-name'],
+                \'kinds':[
+                \'c:class',
+                \'C:constants',
+                \'g:enumDefs',
+                \'e:enums',
+                \'s:signals',
+                \'v:variables',
+                \'f:functions',
+                \]
+                \}
+
