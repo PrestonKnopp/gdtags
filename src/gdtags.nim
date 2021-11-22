@@ -155,6 +155,7 @@ const
     "variable_statement": "variable",
     "export_variable_statement": "variable",
     "onready_variable_statement": "variable",
+    "const_statement": "constant",
     "function_definition": "function",
     "class_definition": "class",
     "enum_definition": "enumDef",
