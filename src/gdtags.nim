@@ -1,7 +1,11 @@
-const NimblePkgVersion {.strdefine.} = "Unknown"
-# Allow nimble to define gdtags' pkg version.
+import strutils, tables, sequtils
+import "."/[debugutil, treesitter, treesittergdscript, tsutil, taggen]
 
-const help = """
+const
+  NimblePkgVersion {.strdefine.} = "Unknown"
+  # Allow nimble to define gdtags' pkg version.
+
+  help = """
 USAGE
     gdtags [options] [<file>...]
     gdtags [options] (-R | --recurse) [<directory>...]
@@ -50,106 +54,6 @@ OPTIONS
     -h,--help,-?
         Print this help and then exit."""
 
-import os, parseopt, strutils, tables, sequtils
-import nre except toSeq, toTable
-import "."/[debugutil, treesitter, treesittergdscript, tsutil, taggen]
-
-type
-  Options = object
-    inFiles: seq[string]
-    outFile: string
-    recurse: bool
-    maxDepth: int
-    exclude: seq[string]
-    excludeEx: seq[string]
-    format: FormatKind
-    sorted: bool
-    omitClassName: bool
-    unknownOpts: seq[string]
-
-proc initOptions(): Options =
-  result.inFiles = newSeq[string]()
-  result.outFile = "-"
-  result.recurse = false
-  result.maxDepth = 0
-  result.exclude = newSeq[string]()
-  result.excludeEx = newSeq[string]()
-  result.format = fCtags
-  result.sorted = true
-  result.omitClassName = false
-  result.unknownOpts = newSeq[string]()
-
-var opts = initOptions()
-
-for opt in getopt():
-  decho opt
-  case opt.kind:
-  of cmdLongOption, cmdShortOption:
-    case opt.key:
-    of "o", "f", "output": opts.outFile = opt.val
-    of "R", "recurse": opts.recurse = true
-    of "maxdepth": opts.maxDepth = opt.val.parseInt
-    of "exclude": opts.exclude.add opt.val
-    of "exclude-exception": opts.excludeEx.add opt.val
-    of "u": opts.sorted = false
-    of "sort": opts.sorted = opt.val.parseBool
-    of "omit-class-name": opts.omitClassName = true
-    of "json": opts.format = fJson
-    of "emacs": opts.format = fEtags
-    of "output-format":
-      if opt.val == "json":
-        opts.format = fJson
-      elif opt.val == "ctags":
-        opts.format = fCtags
-      elif opt.val == "etags":
-        opts.format = fEtags
-      else:
-        eecho "Unknown format: ", opt.val
-        eecho "Valid formats are: ctags, json"
-        quit QuitFailure
-    of "version":
-        echo 'v', NimblePkgVersion
-        quit QuitSuccess
-    of "?", "h", "help":
-      echo help
-      quit QuitSuccess
-    else:
-      let key = (if opt.kind == cmdShortOption: "-" else: "--") & opt.key
-      opts.unknownOpts.add key & (if opt.val.len == 0: "" else: "=" & opt.val)
-  of cmdArgument:
-    opts.inFiles.add opt.key
-  of cmdEnd:
-    discard
-
-decho $opts
-
-block:
-  var checksPassed = true
-
-  if opts.unknownOpts.len > 0:
-    eecho "Unknown options: ", opts.unknownOpts.join(" ")
-    checksPassed = false
-
-  if opts.outFile != "-":
-    if opts.outFile.dirExists:
-      eecho "--output file cannot be a directory"
-      checksPassed = false
-
-  for file in opts.inFiles:
-    let exists = file.fileExists
-    if opts.recurse:
-      if exists:
-        eecho "Cannot --recurse a file: ", file
-        checksPassed = false
-      elif not file.dirExists:
-        eecho "Cannot --recurse non existant directory: ", file
-        checksPassed = false
-    elif not exists:
-      eecho "GDScript file does not exist: ", file
-      checksPassed = false
-
-  if not checksPassed:
-    quit QuitFailure
 
 const
   nodeTypeKindMap = {
@@ -163,16 +67,8 @@ const
     "enumerator": "enum",
     "signal_statement": "signal"
   }.toTable
+
   nodeTypeKeys = toSeq(nodeTypeKindMap.keys)
-
-let
-  gdscript = newGdscript()
-  parser = newParser()
-  tags = TagGen()
-
-if not parser.setLanguage(gdscript):
-  eecho "Failed to set parser language to gdscript."
-  quit QuitFailure
 
 
 func joinNamespace(ns, newNs: string): string {.inline.} =
@@ -192,7 +88,7 @@ func firstTextLine(source: string, node: Node): string =
     source.substr(startIdx, endIdx)
 
 
-proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: string="") =
+proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace: string="") =
   for node, nodeType in rootNode.childrenWithNames(nodeTypeKeys):
 
     let tagInfo = TagLineInfo(
@@ -267,7 +163,7 @@ proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: 
     tags.add tagInfo
 
 
-proc processFile(tags: TagGen, parser: ptr Parser, file: string) =
+proc processFile*(tags: TagGen, parser: ptr Parser, file: string, omitClassName: bool) =
   let source = file.readFile
   let tree = parser.parseString(nil, source.cstring, source.len.uint32)
   if tree == nil:
@@ -276,7 +172,7 @@ proc processFile(tags: TagGen, parser: ptr Parser, file: string) =
 
   let root = tree.rootNode
 
-  if not opts.omitClassName:
+  if not omitClassName:
     let classNameStmt = root.firstChildNamed("class_name_statement")
     if not classNameStmt.isNil:
       tags.add TagLineInfo(
@@ -291,49 +187,160 @@ proc processFile(tags: TagGen, parser: ptr Parser, file: string) =
   processNode tags, root, file, source
 
 
-if opts.recurse:
+when isMainModule:
+  import os, parseopt
+  import nre except toSeq, toTable
 
-  var excludeRegs: seq[Regex] = @[]
-  var excludeExRegs: seq[Regex] = @[]
+  type
+    Options = object
+      inFiles: seq[string]
+      outFile: string
+      recurse: bool
+      maxDepth: int
+      exclude: seq[string]
+      excludeEx: seq[string]
+      format: FormatKind
+      sorted: bool
+      omitClassName: bool
+      unknownOpts: seq[string]
 
-  for exclude in opts.exclude:
-    excludeRegs.add exclude.re
-  for excludeEx in opts.excludeEx:
-    excludeExRegs.add excludeEx.re
+  proc initOptions(): Options =
+    result.inFiles = newSeq[string]()
+    result.outFile = "-"
+    result.recurse = false
+    result.maxDepth = 0
+    result.exclude = newSeq[string]()
+    result.excludeEx = newSeq[string]()
+    result.format = fCtags
+    result.sorted = true
+    result.omitClassName = false
+    result.unknownOpts = newSeq[string]()
 
-  if opts.inFiles.len == 0:
-    opts.inFiles.add "."
+  var opts = initOptions()
 
-  for inFile in opts.inFiles:
-    for file in walkDirRec(inFile):
-      if not file.endsWith(".gd"):
-        continue
+  for opt in getopt():
+    decho opt
+    case opt.kind:
+    of cmdLongOption, cmdShortOption:
+      case opt.key:
+      of "o", "f", "output": opts.outFile = opt.val
+      of "R", "recurse": opts.recurse = true
+      of "maxdepth": opts.maxDepth = opt.val.parseInt
+      of "exclude": opts.exclude.add opt.val
+      of "exclude-exception": opts.excludeEx.add opt.val
+      of "u": opts.sorted = false
+      of "sort": opts.sorted = opt.val.parseBool
+      of "omit-class-name": opts.omitClassName = true
+      of "json": opts.format = fJson
+      of "emacs": opts.format = fEtags
+      of "output-format":
+        if opt.val == "json":
+          opts.format = fJson
+        elif opt.val == "ctags":
+          opts.format = fCtags
+        elif opt.val == "etags":
+          opts.format = fEtags
+        else:
+          eecho "Unknown format: ", opt.val
+          eecho "Valid formats are: ctags, json"
+          quit QuitFailure
+      of "version":
+          echo 'v', NimblePkgVersion
+          quit QuitSuccess
+      of "?", "h", "help":
+        echo help
+        quit QuitSuccess
+      else:
+        let key = (if opt.kind == cmdShortOption: "-" else: "--") & opt.key
+        opts.unknownOpts.add key & (if opt.val.len == 0: "" else: "=" & opt.val)
+    of cmdArgument:
+      opts.inFiles.add opt.key
+    of cmdEnd:
+      discard
 
-      var shouldExclude = false
-      for excludeReg in excludeRegs:
-        if file.contains(excludeReg):
-          shouldExclude = true
-          break
+  decho $opts
 
-      if shouldExclude:
-        for excludeExReg in excludeExRegs:
-          if file.contains(excludeExReg):
-            shouldExclude = false
+  block:
+    var checksPassed = true
+
+    if opts.unknownOpts.len > 0:
+      eecho "Unknown options: ", opts.unknownOpts.join(" ")
+      checksPassed = false
+
+    if opts.outFile != "-":
+      if opts.outFile.dirExists:
+        eecho "--output file cannot be a directory"
+        checksPassed = false
+
+    for file in opts.inFiles:
+      let exists = file.fileExists
+      if opts.recurse:
+        if exists:
+          eecho "Cannot --recurse a file: ", file
+          checksPassed = false
+        elif not file.dirExists:
+          eecho "Cannot --recurse non existant directory: ", file
+          checksPassed = false
+      elif not exists:
+        eecho "GDScript file does not exist: ", file
+        checksPassed = false
+
+    if not checksPassed:
+      quit QuitFailure
+
+  let
+    gdscript = newGdscript()
+    parser = newParser()
+    tags = TagGen()
+
+  if not parser.setLanguage(gdscript):
+    eecho "Failed to set parser language to gdscript."
+    quit QuitFailure
+
+  if opts.recurse:
+
+    var excludeRegs: seq[Regex] = @[]
+    var excludeExRegs: seq[Regex] = @[]
+
+    for exclude in opts.exclude:
+      excludeRegs.add exclude.re
+    for excludeEx in opts.excludeEx:
+      excludeExRegs.add excludeEx.re
+
+    if opts.inFiles.len == 0:
+      opts.inFiles.add "."
+
+    for inFile in opts.inFiles:
+      for file in walkDirRec(inFile):
+        if not file.endsWith(".gd"):
+          continue
+
+        var shouldExclude = false
+        for excludeReg in excludeRegs:
+          if file.contains(excludeReg):
+            shouldExclude = true
             break
 
-      if shouldExclude:
-        continue
+        if shouldExclude:
+          for excludeExReg in excludeExRegs:
+            if file.contains(excludeExReg):
+              shouldExclude = false
+              break
 
-      processFile tags, parser, file
+        if shouldExclude:
+          continue
 
-else:
-  for inFile in opts.inFiles:
-    processFile tags, parser, inFile
+        processFile tags, parser, file, opts.omitClassName
 
-let output = tags.gen(opts.format, opts.sorted)
-if opts.outFile.isEmptyOrWhitespace or opts.outFile == "-":
-  stdout.write output
-else:
-  writeFile opts.outFile, output
+  else:
+    for inFile in opts.inFiles:
+      processFile tags, parser, inFile, opts.omitClassName
 
-parser.delete()
+  let output = tags.gen(opts.format, opts.sorted)
+  if opts.outFile.isEmptyOrWhitespace or opts.outFile == "-":
+    stdout.write output
+  else:
+    writeFile opts.outFile, output
+
+  parser.delete()
+
