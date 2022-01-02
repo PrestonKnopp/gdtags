@@ -178,6 +178,7 @@ if not parser.setLanguage(gdscript):
 func joinNamespace(ns, newNs: string): string {.inline.} =
   if ns == "": newNs else: ns & "." & newNs
 
+
 func firstTextLine(source: string, node: Node): string =
     # Get the first line of source text that lies between two newlines.
     var
@@ -190,6 +191,68 @@ func firstTextLine(source: string, node: Node): string =
 
     source.substr(startIdx, endIdx)
 
+
+proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: string="") =
+  for node, nodeType in rootNode.childrenWithNames(nodeTypeKeys):
+
+    let tag = node.firstChildNamed("name").text(source)
+    let pattern = firstTextLine(source, node)
+    let fields = newOrderedTable[Field, string]()
+    # kind field should always be added first
+    fields.add kind, nodeTypeKindMap[nodeType]
+    if namespace != "":
+      fields.add scopeKind, "class"
+      fields.add scope, namespace
+
+    case nodeType:
+    of "enum_definition":
+      node.descendantsWithNames "enumerator", proc (enumNode: Node, nt: string) =
+        let enumTag = enumNode.firstChildNamed("identifier").text(source)
+        let pattern = firstTextLine(source, enumNode)
+        let lineNum = enumNode.startPoint.row.int.succ
+        let startByte = enumNode.startByte
+        let fields = newOrderedTable[Field, string]()
+
+        fields.add kind, nodeTypeKindMap["enumerator"]
+        let enumNamespace = joinNamespace(namespace, tag)
+        if enumNamespace != "":
+          fields.add scopeKind, "enumDef"
+          fields.add scope, enumNamespace
+        if enumNode.namedChildCount > 1:
+          fields.add signature, " = " & enumNode.namedChild(1).text(source)
+        if tag != "":
+          fields.add fEnum, tag
+
+        tags.add file, enumTag, pattern, lineNum, startByte, fields
+
+      # enumDefs can be anonymous so the tag will be empty.  The other tag
+      # kinds shouldn't be whitespace so only check it here.
+      if tag.isEmptyOrWhitespace:
+        continue
+
+    of "signal_statement":
+      let identListNode = node.firstChildNamed("identifier_list")
+      if not identListNode.isNil:
+        fields.add signature, "(" & identListNode.text(source) & ")"
+
+    of "function_definition":
+      let parametersNode = node.firstChildNamed("parameters")
+      let returnTypeNode = node.firstChildNamed("return_type")
+      var sig = ""
+      if parametersNode.namedChildCount > 0:
+        sig.add parametersNode.text(source)
+      if not returnTypeNode.isNil:
+        sig.add " " & returnTypeNode.text(source)
+      if sig != "":
+        fields.add signature, sig
+
+    of "class_definition":
+      let body = node.firstChildNamed("body")
+      processNode tags, body, file, source, joinNamespace(namespace, tag)
+
+    tags.add file, tag, pattern, node.startPoint.row.int.succ, node.startByte, fields
+
+
 proc processFile(file: string) =
   let source = file.readFile
   let tree = parser.parseString(nil, source.cstring, source.len.uint32)
@@ -199,66 +262,6 @@ proc processFile(file: string) =
 
   let root = tree.rootNode
 
-  proc processSource(rootNode: Node, namespace: string="") =
-    for node, nodeType in rootNode.childrenWithNames(nodeTypeKeys):
-
-      let tag = node.firstChildNamed("name").text(source)
-      let pattern = firstTextLine(source, node)
-      let fields = newOrderedTable[Field, string]()
-      # kind field should always be added first
-      fields.add kind, nodeTypeKindMap[nodeType]
-      if namespace != "":
-        fields.add scopeKind, "class"
-        fields.add scope, namespace
-
-      case nodeType:
-      of "enum_definition":
-        node.descendantsWithNames "enumerator", proc (enumNode: Node, nt: string) =
-          let enumTag = enumNode.firstChildNamed("identifier").text(source)
-          let pattern = firstTextLine(source, enumNode)
-          let lineNum = enumNode.startPoint.row.int.succ
-          let startByte = enumNode.startByte
-          let fields = newOrderedTable[Field, string]()
-
-          fields.add kind, nodeTypeKindMap["enumerator"]
-          let enumNamespace = joinNamespace(namespace, tag)
-          if enumNamespace != "":
-            fields.add scopeKind, "enumDef"
-            fields.add scope, enumNamespace
-          if enumNode.namedChildCount > 1:
-            fields.add signature, " = " & enumNode.namedChild(1).text(source)
-          if tag != "":
-            fields.add fEnum, tag
-
-          tags.add file, enumTag, pattern, lineNum, startByte, fields
-
-        # enumDefs can be anonymous so the tag will be empty.  The other tag
-        # kinds shouldn't be whitespace so only check it here.
-        if tag.isEmptyOrWhitespace:
-          continue
-
-      of "signal_statement":
-        let identListNode = node.firstChildNamed("identifier_list")
-        if not identListNode.isNil:
-          fields.add signature, "(" & identListNode.text(source) & ")"
-
-      of "function_definition":
-        let parametersNode = node.firstChildNamed("parameters")
-        let returnTypeNode = node.firstChildNamed("return_type")
-        var sig = ""
-        if parametersNode.namedChildCount > 0:
-          sig.add parametersNode.text(source)
-        if not returnTypeNode.isNil:
-          sig.add " " & returnTypeNode.text(source)
-        if sig != "":
-          fields.add signature, sig
-
-      of "class_definition":
-        let body = node.firstChildNamed("body")
-        processSource body, joinNamespace(namespace, tag)
-
-      tags.add file, tag, pattern, node.startPoint.row.int.succ, node.startByte, fields
-
   if not opts.omitClassName:
     let classNameStmt = root.firstChildNamed("class_name_statement")
     if not classNameStmt.isNil:
@@ -267,7 +270,8 @@ proc processFile(file: string) =
       let lineNum = classNameStmt.startPoint.row.int.succ
       tags.add file, className, stmtText, lineNum, classNameStmt.startByte, {kind: "class"}.newOrderedTable
 
-  processSource root
+  processNode tags, root, file, source
+
 
 if opts.recurse:
 
