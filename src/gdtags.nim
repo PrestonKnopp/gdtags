@@ -195,45 +195,59 @@ func firstTextLine(source: string, node: Node): string =
 proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: string="") =
   for node, nodeType in rootNode.childrenWithNames(nodeTypeKeys):
 
-    let tag = node.firstChildNamed("name").text(source)
-    let pattern = firstTextLine(source, node)
-    let fields = newOrderedTable[Field, string]()
+    let tagInfo = TagLineInfo(
+        path: file,
+        name: node.firstChildNamed("name").text(source),
+        pattern: firstTextLine(source, node),
+        lineNum: node.startPoint.row.int.succ,
+        byteOffset: node.startByte,
+        fields: newOrderedTable[Field, string](),
+      )
+
     # kind field should always be added first
-    fields[kind] = nodeTypeKindMap[nodeType]
+    tagInfo.fields[kind] = nodeTypeKindMap[nodeType]
+
     if namespace != "":
-      fields[scopeKind] = "class"
-      fields[scope] = namespace
+      tagInfo.fields[scopeKind] = "class"
+      tagInfo.fields[scope] = namespace
 
     case nodeType:
     of "enum_definition":
       node.descendantsWithNames "enumerator", proc (enumNode: Node, nt: string) =
-        let enumTag = enumNode.firstChildNamed("identifier").text(source)
-        let pattern = firstTextLine(source, enumNode)
-        let lineNum = enumNode.startPoint.row.int.succ
-        let startByte = enumNode.startByte
-        let fields = newOrderedTable[Field, string]()
+        let enumTagInfo = TagLineInfo(
+            path: file,
+            name: enumNode.firstChildNamed("identifier").text(source),
+            pattern: firstTextLine(source, enumNode),
+            lineNum: enumNode.startPoint.row.int.succ,
+            byteOffset: enumNode.startByte,
+            fields: newOrderedTable[Field, string](),
+          )
 
-        fields[kind] = nodeTypeKindMap["enumerator"]
-        let enumNamespace = joinNamespace(namespace, tag)
+        # kind field should always be added first
+        enumTagInfo.fields[kind] = nodeTypeKindMap["enumerator"]
+
+        let enumNamespace = joinNamespace(namespace, tagInfo.name)
         if enumNamespace != "":
-          fields[scopeKind] = "enumDef"
-          fields[scope] = enumNamespace
+          enumTagInfo.fields[scopeKind] = "enumDef"
+          enumTagInfo.fields[scope] = enumNamespace
+
         if enumNode.namedChildCount > 1:
-          fields[signature] = " = " & enumNode.namedChild(1).text(source)
-        if tag != "":
-          fields[fEnum] = tag
+          enumTagInfo.fields[signature] = " = " & enumNode.namedChild(1).text(source)
 
-        tags.add file, enumTag, pattern, lineNum, startByte, fields
+        if tagInfo.name != "":
+          enumTagInfo.fields[fEnum] = tagInfo.name
 
-      # enumDefs can be anonymous so the tag will be empty.  The other tag
+        tags.add enumTagInfo
+
+      # enumDefs can be anonymous so the name will be empty.  The other tag
       # kinds shouldn't be whitespace so only check it here.
-      if tag.isEmptyOrWhitespace:
+      if tagInfo.name.isEmptyOrWhitespace:
         continue
 
     of "signal_statement":
       let identListNode = node.firstChildNamed("identifier_list")
       if not identListNode.isNil:
-        fields[signature] = "(" & identListNode.text(source) & ")"
+        tagInfo.fields[signature] = "(" & identListNode.text(source) & ")"
 
     of "function_definition":
       let parametersNode = node.firstChildNamed("parameters")
@@ -244,13 +258,13 @@ proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: 
       if not returnTypeNode.isNil:
         sig.add " " & returnTypeNode.text(source)
       if sig != "":
-        fields[signature] = sig
+        tagInfo.fields[signature] = sig
 
     of "class_definition":
       let body = node.firstChildNamed("body")
-      processNode tags, body, file, source, joinNamespace(namespace, tag)
+      processNode tags, body, file, source, joinNamespace(namespace, tagInfo.name)
 
-    tags.add file, tag, pattern, node.startPoint.row.int.succ, node.startByte, fields
+    tags.add tagInfo
 
 
 proc processFile(tags: TagGen, parser: ptr Parser, file: string) =
@@ -265,10 +279,14 @@ proc processFile(tags: TagGen, parser: ptr Parser, file: string) =
   if not opts.omitClassName:
     let classNameStmt = root.firstChildNamed("class_name_statement")
     if not classNameStmt.isNil:
-      let stmtText = firstTextLine(source, classNameStmt)
-      let className = classNameStmt.firstChildNamed("name").text(source)
-      let lineNum = classNameStmt.startPoint.row.int.succ
-      tags.add file, className, stmtText, lineNum, classNameStmt.startByte, {kind: "class"}.newOrderedTable
+      tags.add TagLineInfo(
+          path: file,
+          name: classNameStmt.firstChildNamed("name").text(source),
+          pattern: firstTextLine(source, classNameStmt),
+          lineNum: classNameStmt.startPoint.row.int.succ,
+          byteOffset: classNameStmt.startByte,
+          fields: newOrderedTable({kind: "class"})
+        )
 
   processNode tags, root, file, source
 

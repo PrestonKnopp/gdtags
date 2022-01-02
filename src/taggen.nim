@@ -9,13 +9,13 @@ type
     scopeKind, scope,
     signature, fEnum
 
-  TagLineInfo = object
-    path: string
-    name: string
-    pattern: string
-    lineNum: int
-    byteOffset: uint32
-    fields: OrderedTableRef[Field, string]
+  TagLineInfo* = object
+    path*: string
+    name*: string
+    pattern*: string
+    lineNum*: int
+    byteOffset*: uint32
+    fields*: OrderedTableRef[Field, string]
 
   TagGen* = ref object
     lines: seq[TagLineInfo]
@@ -41,15 +41,8 @@ const
     fEnum: "enum",
   ]
 
-proc add*(gen: TagGen, path, name, pattern: string, lineNum: int, byteOffset: uint32, fields: OrderedTableRef[Field, string]): void =
-  gen.lines.add TagLineInfo(
-    path: path,
-    name: name,
-    pattern: pattern,
-    lineNum: lineNum,
-    byteOffset: byteOffset,
-    fields: fields
-  )
+proc add*(gen: TagGen, tagInfo: TagLineInfo): void =
+  gen.lines.add tagInfo
 
 proc escapePattern(s: string): string =
   s.multiReplace(
