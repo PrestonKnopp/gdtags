@@ -10,32 +10,25 @@ iterator childrenWithNames*(node: Node, names: varargs[string]): ( Node, string 
         yield (n, name)
       n = n.nextNamedSibling
 
-## Recursively descend tree via cursor calling `callback`
-##
-## This cursor is copied which retains cursor state from call site when this
-## proc returns.
-proc descendantsWithNames*(node: Node, names: varargs[string], callback: proc (node: Node, nodeType: string)) =
-  if node.isNil:
-    return
+iterator descendantsWithNames*(node: Node, names: varargs[string]): ( Node, string ) =
+  var
+    cursor = newTreeCursor(node)
+    stack = @[node]
 
-  var cursor = node.newTreeCursor
-  defer: cursor.delete()
+  defer: delete(cursor)
 
-  if not cursor.gotoFirstChild:
-    return
+  while stack.len > 0:
+    cursor.reset(stack.pop())
 
-  while true:
+    if cursor.gotoFirstChild():
+      while true:
+        if $cursor.currentNode.name in names:
+          yield (cursor.currentNode, $cursor.currentNode.name)
+        elif cursor.currentNode.namedChildCount > 0:
+          stack.add(cursor.currentNode)
 
-    let node = cursor.currentNode
-    let name = $node.name
-
-    if name in names:
-      callback node, name
-    else:
-      node.descendantsWithNames names, callback
-
-    if not cursor.gotoNextSibling:
-      break
+        if not cursor.gotoNextSibling():
+          break
 
 proc firstChildNamed*(node: Node, name: string): Node =
   for n in node.childrenWithNames(name):
@@ -62,6 +55,7 @@ when isMainModule:
   var hello: String
   var goodbye: World
   func okay():
+    var inner_func_var = 1
     pass
   """
 
@@ -80,8 +74,9 @@ when isMainModule:
   echo r.firstNodeForPath("variable_statement", "name").text(source)
 
   proc ch(c: var TreeCursor) =
-    c.currentNode.name.echo
-    c.currentNode.namedChildCount.echo
+    echo c.currentNode.name, ":", c.currentNode.text(source), " namedChildcount: ", c.currentNode.namedChildCount
+
+  var vs = r.firstNodeForPath("variable_statement")
 
   var tc = r.newTreeCursor
   tc.ch
@@ -92,3 +87,16 @@ when isMainModule:
   tc.gotoFirstChild.echo
   tc.ch
   tc2.ch
+
+  echo "---"
+  # tc.reset(vs) # reset uses the given node as a new *root* node.
+  tc = newTreeCursor vs
+  tc.ch
+  echo "Next Sib? ", tc.gotoNextSibling() # false
+  echo "Parent? ", tc.gotoParent() # false
+  echo "Child? ", tc.gotoFirstChild() # true
+  echo "Then Parent? ", tc.gotoParent()
+  tc.ch
+
+  for node, name in descendantsWithNames(r, "variable_statement", "enumerator"):
+    echo name, "::", node.text(source)

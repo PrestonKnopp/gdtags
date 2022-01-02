@@ -67,7 +67,7 @@ proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace:
 
     case nodeName:
     of nodeNameEnumDef:
-      node.descendantsWithNames nodeNameEnum, proc (enumNode: Node, _: string) =
+      for enumNode, _ in descendantsWithNames(node, nodeNameEnum):
         let enumTagInfo = TagLineInfo(
             path: file,
             name: enumNode.firstChildNamed("identifier").text(source),
