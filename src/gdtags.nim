@@ -21,7 +21,7 @@ OPTIONS
         The pattern is tested on first the full path of a file then just the
         file name.
         This option can be specified multiple times.
-    --exclude-exception=<pattern>
+    --exclude-exception=<pattern>                                     [default:]
         Add pattern to a list of patterns to find exceptions in --exclude files
         and directories when --recurse is enabled.
         The pattern is tested after an --exclude pattern succeeded. It tests
@@ -35,7 +35,7 @@ OPTIONS
         Shorthand for --output-format=json.
         Note: vista.vim looks for "--output-format=json" in the command to
         determine parser.
-    --emacs
+    --emacs                                                           [default:]
         Shorthand for --output-format=etags.
     -u                                                                [default:]
         Equivalent to --sort=no
