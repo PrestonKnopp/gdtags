@@ -253,7 +253,7 @@ proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: 
     tags.add file, tag, pattern, node.startPoint.row.int.succ, node.startByte, fields
 
 
-proc processFile(file: string) =
+proc processFile(tags: TagGen, parser: ptr Parser, file: string) =
   let source = file.readFile
   let tree = parser.parseString(nil, source.cstring, source.len.uint32)
   if tree == nil:
@@ -306,11 +306,11 @@ if opts.recurse:
       if shouldExclude:
         continue
 
-      processFile file
+      processFile tags, parser, file
 
 else:
   for inFile in opts.inFiles:
-    processFile inFile
+    processFile tags, parser, inFile
 
 let output = tags.gen(opts.format, opts.sorted)
 if opts.outFile.isEmptyOrWhitespace or opts.outFile == "-":
