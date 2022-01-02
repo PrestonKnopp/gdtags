@@ -8,19 +8,25 @@ const
 
 
 const
-  nodeTypeToCtagKindMap = {
+  nodeNameFuncDef = "function_definition"
+  nodeNameClassDef = "class_definition"
+  nodeNameEnumDef = "enum_definition"
+  nodeNameEnum = "enumerator"
+  nodeNameSigStmt = "signal_statement"
+
+  nodeNameToCtagKindMap = {
     "variable_statement": "variable",
     "export_variable_statement": "variable",
     "onready_variable_statement": "variable",
     "const_statement": "constant",
-    "function_definition": "function",
-    "class_definition": "class",
-    "enum_definition": "enumDef",
-    "enumerator": "enum",
-    "signal_statement": "signal"
+    nodeNameFuncDef: "function",
+    nodeNameClassDef: "class",
+    nodeNameEnumDef: "enumDef",
+    nodeNameEnum: "enum",
+    nodeNameSigStmt: "signal"
   }.toTable
 
-  nodeTypes = toSeq(nodeTypeToCtagKindMap.keys)
+  nodeNames = toSeq(nodeNameToCtagKindMap.keys)
 
 
 func joinNamespace(ns, newNs: string): string {.inline.} =
@@ -41,7 +47,7 @@ func firstTextLine(source: string, node: Node): string =
 
 
 proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace: string="") =
-  for node, nodeType in rootNode.childrenWithNames(nodeTypes):
+  for node, nodeName in rootNode.childrenWithNames(nodeNames):
 
     let tagInfo = TagLineInfo(
         path: file,
@@ -53,15 +59,15 @@ proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace:
       )
 
     # kind field should always be added first
-    tagInfo.fields[kind] = nodeTypeToCtagKindMap[nodeType]
+    tagInfo.fields[kind] = nodeNameToCtagKindMap[nodeName]
 
     if namespace != "":
       tagInfo.fields[scopeKind] = "class"
       tagInfo.fields[scope] = namespace
 
-    case nodeType:
-    of "enum_definition":
-      node.descendantsWithNames "enumerator", proc (enumNode: Node, nt: string) =
+    case nodeName:
+    of nodeNameEnumDef:
+      node.descendantsWithNames nodeNameEnum, proc (enumNode: Node, _: string) =
         let enumTagInfo = TagLineInfo(
             path: file,
             name: enumNode.firstChildNamed("identifier").text(source),
@@ -72,7 +78,7 @@ proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace:
           )
 
         # kind field should always be added first
-        enumTagInfo.fields[kind] = nodeTypeToCtagKindMap["enumerator"]
+        enumTagInfo.fields[kind] = nodeNameToCtagKindMap[nodeNameEnum]
 
         let enumNamespace = joinNamespace(namespace, tagInfo.name)
         if enumNamespace != "":
@@ -92,12 +98,12 @@ proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace:
       if tagInfo.name.isEmptyOrWhitespace:
         continue
 
-    of "signal_statement":
+    of nodeNameSigStmt:
       let identListNode = node.firstChildNamed("identifier_list")
       if not identListNode.isNil:
         tagInfo.fields[signature] = "(" & identListNode.text(source) & ")"
 
-    of "function_definition":
+    of nodeNameFuncDef:
       let parametersNode = node.firstChildNamed("parameters")
       let returnTypeNode = node.firstChildNamed("return_type")
       var sig = ""
@@ -108,7 +114,7 @@ proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace:
       if sig != "":
         tagInfo.fields[signature] = sig
 
-    of "class_definition":
+    of nodeNameClassDef:
       let body = node.firstChildNamed("body")
       processNode tags, body, file, source, joinNamespace(namespace, tagInfo.name)
 
