@@ -20,7 +20,7 @@ const
     "signal_statement": "signal"
   }.toTable
 
-  nodeTypeKeys = toSeq(nodeTypeToCtagKindMap.keys)
+  nodeTypes = toSeq(nodeTypeToCtagKindMap.keys)
 
 
 func joinNamespace(ns, newNs: string): string {.inline.} =
@@ -41,7 +41,7 @@ func firstTextLine(source: string, node: Node): string =
 
 
 proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace: string="") =
-  for node, nodeType in rootNode.childrenWithNames(nodeTypeKeys):
+  for node, nodeType in rootNode.childrenWithNames(nodeTypes):
 
     let tagInfo = TagLineInfo(
         path: file,
