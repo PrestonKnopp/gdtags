@@ -11,3 +11,6 @@ bin           = @["gdtags"]
 
 requires "nim >= 1.2.0"
 requires "nimterop 0.4.4"
+
+task tagVersion, "Tag the current git commit with the package version.":
+  exec "git tag v" & version
