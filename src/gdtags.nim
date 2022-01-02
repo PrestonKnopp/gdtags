@@ -199,10 +199,10 @@ proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: 
     let pattern = firstTextLine(source, node)
     let fields = newOrderedTable[Field, string]()
     # kind field should always be added first
-    fields.add kind, nodeTypeKindMap[nodeType]
+    fields[kind] = nodeTypeKindMap[nodeType]
     if namespace != "":
-      fields.add scopeKind, "class"
-      fields.add scope, namespace
+      fields[scopeKind] = "class"
+      fields[scope] = namespace
 
     case nodeType:
     of "enum_definition":
@@ -213,15 +213,15 @@ proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: 
         let startByte = enumNode.startByte
         let fields = newOrderedTable[Field, string]()
 
-        fields.add kind, nodeTypeKindMap["enumerator"]
+        fields[kind] = nodeTypeKindMap["enumerator"]
         let enumNamespace = joinNamespace(namespace, tag)
         if enumNamespace != "":
-          fields.add scopeKind, "enumDef"
-          fields.add scope, enumNamespace
+          fields[scopeKind] = "enumDef"
+          fields[scope] = enumNamespace
         if enumNode.namedChildCount > 1:
-          fields.add signature, " = " & enumNode.namedChild(1).text(source)
+          fields[signature] = " = " & enumNode.namedChild(1).text(source)
         if tag != "":
-          fields.add fEnum, tag
+          fields[fEnum] = tag
 
         tags.add file, enumTag, pattern, lineNum, startByte, fields
 
@@ -233,7 +233,7 @@ proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: 
     of "signal_statement":
       let identListNode = node.firstChildNamed("identifier_list")
       if not identListNode.isNil:
-        fields.add signature, "(" & identListNode.text(source) & ")"
+        fields[signature] = "(" & identListNode.text(source) & ")"
 
     of "function_definition":
       let parametersNode = node.firstChildNamed("parameters")
@@ -244,7 +244,7 @@ proc processNode(tags: TagGen, rootNode: Node; file, source: string; namespace: 
       if not returnTypeNode.isNil:
         sig.add " " & returnTypeNode.text(source)
       if sig != "":
-        fields.add signature, sig
+        fields[signature] = sig
 
     of "class_definition":
       let body = node.firstChildNamed("body")
