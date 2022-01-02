@@ -174,6 +174,22 @@ if not parser.setLanguage(gdscript):
   eecho "Failed to set parser language to gdscript."
   quit QuitFailure
 
+
+func joinNamespace(ns, newNs: string): string {.inline.} =
+  if ns == "": newNs else: ns & "." & newNs
+
+func firstTextLine(source: string, node: Node): string =
+    # Get the first line of source text that lies between two newlines.
+    var
+      startIdx = node.startByte.int
+      endIdx = startIdx
+    # The following +- 1's are to skip the actual '\n'
+    startIdx = source.rfind('\n', 0, startIdx) + 1
+    endIdx = source.find('\n', endIdx) - 1
+    if endIdx < 0: endIdx = source.high
+
+    source.substr(startIdx, endIdx)
+
 proc processFile(file: string) =
   let source = file.readFile
   let tree = parser.parseString(nil, source.cstring, source.len.uint32)
@@ -183,26 +199,11 @@ proc processFile(file: string) =
 
   let root = tree.rootNode
 
-  proc joinNamespace(ns, nns: string): string {.inline.} =
-    if ns == "": nns else: ns & "." & nns
-
-  proc firstLineSourceText(node: Node): string =
-      # Get the source text line between two newlines
-      var
-        startIdx = node.startByte.int
-        endIdx = startIdx
-      # The following +- 1's are to skip the actual '\n'
-      startIdx = source.rfind('\n', 0, startIdx) + 1
-      endIdx = source.find('\n', endIdx) - 1
-      if endIdx < 0: endIdx = source.high
-
-      source.substr(startIdx, endIdx)
-
   proc processSource(rootNode: Node, namespace: string="") =
     for node, nodeType in rootNode.childrenWithNames(nodeTypeKeys):
 
       let tag = node.firstChildNamed("name").text(source)
-      let pattern = node.firstLineSourceText()
+      let pattern = firstTextLine(source, node)
       let fields = newOrderedTable[Field, string]()
       # kind field should always be added first
       fields.add kind, nodeTypeKindMap[nodeType]
@@ -214,7 +215,7 @@ proc processFile(file: string) =
       of "enum_definition":
         node.descendantsWithNames "enumerator", proc (enumNode: Node, nt: string) =
           let enumTag = enumNode.firstChildNamed("identifier").text(source)
-          let pattern = enumNode.firstLineSourceText()
+          let pattern = firstTextLine(source, enumNode)
           let lineNum = enumNode.startPoint.row.int.succ
           let startByte = enumNode.startByte
           let fields = newOrderedTable[Field, string]()
@@ -261,7 +262,7 @@ proc processFile(file: string) =
   if not opts.omitClassName:
     let classNameStmt = root.firstChildNamed("class_name_statement")
     if not classNameStmt.isNil:
-      let stmtText = classNameStmt.firstLineSourceText()
+      let stmtText = firstTextLine(source, classNameStmt)
       let className = classNameStmt.firstChildNamed("name").text(source)
       let lineNum = classNameStmt.startPoint.row.int.succ
       tags.add file, className, stmtText, lineNum, classNameStmt.startByte, {kind: "class"}.newOrderedTable
