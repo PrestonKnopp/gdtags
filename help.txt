@@ -1,0 +1,47 @@
+USAGE
+    gdtags [options] [<file>...]
+    gdtags [options] (-R | --recurse) [<directory>...]
+
+OPTIONS
+    -o=<file>,-f=<file>,--output=<file>                             [default: -]
+        Specify the file to output generated tags. Defaults to stdout.
+    -R,--recurse                                                      [default:]
+        Recursively generate tags for every gdscript file in directory.
+    --maxdepth=N                                                    [default: 0]
+        Limit the depth of directory recursion enabled with the --recurse (-R)
+        option.
+        NOTE: This is not implemented yet.
+    --exclude=<pattern>                                               [default:]
+        Add pattern to a list of patterns to exclude files and directories when
+        --recurse is enabled.
+        The pattern is tested on first the full path of a file then just the
+        file name.
+        This option can be specified multiple times.
+    --exclude-exception=<pattern>                                     [default:]
+        Add pattern to a list of patterns to find exceptions in --exclude files
+        and directories when --recurse is enabled.
+        The pattern is tested after an --exclude pattern succeeded. It tests
+        first the full path of a file then just the file name.
+        This option can be specified multiple times.
+    --output-format=ctags|etags|json                            [default: ctags]
+        Specify the output format.
+        Use etags format to generate tags for emacs.
+        json format can be used for programs such as vista.vim.
+    --json                                                            [default:]
+        Shorthand for --output-format=json.
+        Note: vista.vim looks for "--output-format=json" in the command to
+        determine parser.
+    --emacs                                                           [default:]
+        Shorthand for --output-format=etags.
+    -u                                                                [default:]
+        Equivalent to --sort=no
+    --sort=yes|no                                                 [default: yes]
+        Sort tag file by tag name. This is required for programs to perform a
+        binary search on the tags file.
+    --omit-class-name                                                 [default:]
+        Omit generating a tag for class name. You should specify this for
+        programs like vista or tagbar to better display symbol hierarchy.
+    --version                                                         [default:]
+        Print version and then exit.
+    -h,--help,-?
+        Print this help and then exit.
