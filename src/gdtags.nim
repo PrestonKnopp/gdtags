@@ -8,7 +8,7 @@ const
 
 
 const
-  nodeTypeKindMap = {
+  nodeTypeToCtagKindMap = {
     "variable_statement": "variable",
     "export_variable_statement": "variable",
     "onready_variable_statement": "variable",
@@ -20,7 +20,7 @@ const
     "signal_statement": "signal"
   }.toTable
 
-  nodeTypeKeys = toSeq(nodeTypeKindMap.keys)
+  nodeTypeKeys = toSeq(nodeTypeToCtagKindMap.keys)
 
 
 func joinNamespace(ns, newNs: string): string {.inline.} =
@@ -53,7 +53,7 @@ proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace:
       )
 
     # kind field should always be added first
-    tagInfo.fields[kind] = nodeTypeKindMap[nodeType]
+    tagInfo.fields[kind] = nodeTypeToCtagKindMap[nodeType]
 
     if namespace != "":
       tagInfo.fields[scopeKind] = "class"
@@ -72,7 +72,7 @@ proc processNode*(tags: TagGen, rootNode: Node; file, source: string; namespace:
           )
 
         # kind field should always be added first
-        enumTagInfo.fields[kind] = nodeTypeKindMap["enumerator"]
+        enumTagInfo.fields[kind] = nodeTypeToCtagKindMap["enumerator"]
 
         let enumNamespace = joinNamespace(namespace, tagInfo.name)
         if enumNamespace != "":
