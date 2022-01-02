@@ -1,4 +1,5 @@
-const version = "v0.1.0"
+const NimblePkgVersion {.strdefine.} = "Unknown"
+# Allow nimble to define gdtags' pkg version.
 
 const help = """
 USAGE
@@ -107,7 +108,7 @@ for opt in getopt():
         eecho "Valid formats are: ctags, json"
         quit QuitFailure
     of "version":
-        echo version
+        echo 'v', NimblePkgVersion
         quit QuitSuccess
     of "?", "h", "help":
       echo help
