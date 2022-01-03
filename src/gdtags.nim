@@ -257,13 +257,9 @@ when isMainModule:
 
   if opts.recurse:
 
-    var excludeRegs: seq[Regex] = @[]
-    var excludeExRegs: seq[Regex] = @[]
-
-    for exclude in opts.exclude:
-      excludeRegs.add exclude.re
-    for excludeEx in opts.excludeEx:
-      excludeExRegs.add excludeEx.re
+    let
+      excludeRegs: seq[Regex] = opts.exclude.map(re)
+      excludeExRegs: seq[Regex] = opts.excludeEx.map(re)
 
     if opts.inFiles.len == 0:
       opts.inFiles.add "."
