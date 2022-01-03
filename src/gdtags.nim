@@ -261,8 +261,41 @@ when isMainModule:
       excludeRegs: seq[Regex] = opts.exclude.map(re)
       excludeExRegs: seq[Regex] = opts.excludeEx.map(re)
 
+    var i = 0
+    while succ(i) < len(opts.inFiles):
+      # Only loop over files if there are more than one inFiles.
+      # At the same time: continue looping while there is 1 or more than i
+      # inFiles remaining.
+      # ---
+      # Reduce repeating dirs by removing dirs that will
+      # be traversed with an ancestor dir.
+      let iFile = opts.inFiles[i]
+      var didDel_iFile = false
+
+      var j = succ(i)
+      while j < len(opts.inFiles):
+        let jFile = opts.inFiles[j]
+
+        if isRelativeTo(path = jFile, base = iFile) or jFile == iFile:
+          # iFile includes or equals jFile. We don't need jFile.
+          del(opts.inFiles, j)
+          continue # to use current j index.
+
+        elif isRelativeTo(path = iFile, base = jFile):
+          # jFile includes iFile. We don't need iFile.
+          del(opts.inFiles, i)
+          didDel_iFile = true
+          break # because iFile is invalid.
+
+        inc(j)
+
+      if not didDel_iFile:
+        inc(i)
+
     if opts.inFiles.len == 0:
       opts.inFiles.add "."
+
+    decho opts.inFiles
 
     for inFile in opts.inFiles:
       for file in walkDirRec(inFile):
