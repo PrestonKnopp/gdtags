@@ -9,8 +9,7 @@ OPTIONS
         Recursively generate tags for every gdscript file in directory.
     --maxdepth=N                                                    [default: 0]
         Limit the depth of directory recursion enabled with the --recurse (-R)
-        option.
-        NOTE: This is not implemented yet.
+        option. A value of 0 allows unlimited depth traversal.
     --exclude=<pattern>                                               [default:]
         Add pattern to a list of patterns to exclude files and directories when
         --recurse is enabled.

@@ -297,27 +297,39 @@ when isMainModule:
 
     decho opts.inFiles
 
+
+    type DirStack = seq[tuple[dir: string, depth: int]]
+    const maxDepthUnlimitedValue = 0
+
     for inFile in opts.inFiles:
-      for file in walkDirRec(inFile):
-        if not file.endsWith(".gd"):
-          continue
+      var stack: DirStack = @{inFile: 0}
 
-        var shouldExclude = false
-        for excludeReg in excludeRegs:
-          if file.contains(excludeReg):
-            shouldExclude = true
-            break
+      while stack.len > 0:
+        let data = stack.pop()
 
-        if shouldExclude:
-          for excludeExReg in excludeExRegs:
-            if file.contains(excludeExReg):
-              shouldExclude = false
-              break
+        for kind, path in walkDir(data.dir):
+          case kind
+          of pcDir, pcLinkToDir:
+            if opts.maxDepth == maxDepthUnlimitedValue or succ(data.depth) < opts.maxDepth:
+              stack.add( (path, succ(data.depth)) )
 
-        if shouldExclude:
-          continue
+          of pcFile, pcLinkToFile:
+            if path.endsWith(".gd"):
+              var shouldInclude = true
 
-        processFile tags, parser, file, opts.omitClassName
+              for excludeReg in excludeRegs:
+                if path.contains(excludeReg):
+                  shouldInclude = false
+                  break
+
+              if shouldInclude:
+                for excludeExReg in excludeExRegs:
+                  if path.contains(excludeExReg):
+                    shouldInclude = true
+                    break
+
+              if shouldInclude:
+                processFile(tags, parser, path, opts.omitClassName)
 
   else:
     for inFile in opts.inFiles:
