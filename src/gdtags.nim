@@ -1,5 +1,5 @@
 import strutils, tables, sequtils
-import "."/[debugutil, treesitter, treesittergdscript, tsutil, taggen]
+import "."/[treesitter, treesittergdscript, tsutil, taggen]
 
 const
   NimblePkgVersion {.strdefine.} = "Unknown"
@@ -27,6 +27,14 @@ const
   }.toTable
 
   nodeNames = toSeq(nodeNameToCtagKindMap.keys)
+
+
+template decho(args: untyped): untyped =
+  when not defined(release):
+    echo args
+
+template eecho(args: varargs[string, `$`]) =
+  stderr.writeLine args
 
 
 func joinNamespace(ns, newNs: string): string {.inline.} =
