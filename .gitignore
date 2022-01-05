@@ -1,4 +1,7 @@
-# Ignore generated treesitter api
+# built gdtags binary
+gdtags
+
+# generated treesitter api
 src/generated_treesitter.nim
 
 # Created by https://www.gitignore.io/api/vim,visualstudiocode,macos,windows,linux
