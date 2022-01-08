@@ -147,15 +147,3 @@ proc gen*(gen: TagGen, formatKind: FormatKind, sorted: bool=true): string =
     gen.genEtags()
   else:
     gen.genCtags()
-
-when isMainModule:
-  var tags = TagGen()
-  tags.add "path", "name", "line", 84, 0, {
-    kind: "function",
-    scope: "scope",
-    scopeKind: "scopeKind",
-    signature: "signature"
-  }.newOrderedTable
-  echo tags.genJson()
-  echo tags.genCtags()
-  echo tags.genEtags()
