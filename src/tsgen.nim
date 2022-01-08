@@ -1,10 +1,32 @@
-# Run command:
-# nim --hints:off --compileOnly c src/tsgen.nim > src/generated_treesitter.nim
-# or
-# nimble gen
-
+## Generates a nim friendly api using cPlugin.
+##
+## A thing to note is how cPlugin stores symbols in a HashSet. Nim allows
+## overloaded procs, but cPlugin does not. For example:
+##
+## .. code-block::
+##   # Defined in nim:
+##   proc delete(parser: Parser)
+##   proc delete(treeCursor: TreeCursor)
+##   # Defined in c
+##   parser_delete(Parser* parser)
+##   tree_cursor_delete(TreeCursor* treeCursor)
+##
+## This works around that with the -d:tsGenWriteIgnoredProcs flag. When the flag
+## is passed this will output all proc definitions that would be ignored by
+## cPlugin. Then the developer has to manually add these procs to the end of
+## this file.
+##
+##
+## This file is included in the build step of treesitter.nim and requires no
+## manual execution. However, you can run the following command to generate
+## treesitter manually.
+##
+## Run command:
+## nim --hints:off --compileOnly c src/tsgen.nim > src/generated_treesitter.nim
+##
+## And to write ignored procs to /tmp/ignoredProcs:
+## nim --hints:off --compileOnly c -d:tsGenWriteIgnoredProcs src/tsgen.nim > src/generated_treesitter.nim
 import os
-
 import nimterop/[cimport, build]
 
 const treeSitterDir = getProjectCacheDir("treesitter")

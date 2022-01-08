@@ -1,3 +1,5 @@
+## Downloads tree-sitter-gdscript and sets up its build configuration with nimterop.
+##
 import os
 import nimterop/[cimport, build]
 

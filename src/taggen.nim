@@ -1,3 +1,6 @@
+## Data structure for tag data.
+##
+## Can output tag data in ctags, etags, or json format.
 import tables, strutils, strformat, algorithm, json
 
 type

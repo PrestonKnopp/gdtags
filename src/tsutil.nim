@@ -1,3 +1,4 @@
+## Utilities for working with tree sitter syntax trees.
 import "."/[treesitter]
 
 iterator childrenWithNames*(node: Node, names: varargs[string]): ( Node, string ) =

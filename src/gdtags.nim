@@ -1,3 +1,10 @@
+## Main package file.
+##
+## Contains utilities for adding TagLineInfo from a gdscript syntax tree
+## described by tree sitter.
+##
+## Additionally, contains the cli entry point which handles command line options
+## and outputs tags in a given format.
 import strutils, tables, sequtils
 import "."/[treesitter, treesittergdscript, tsutil, taggen]
 

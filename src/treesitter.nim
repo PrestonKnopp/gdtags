@@ -1,3 +1,7 @@
+## Downloads tree-sitter and utf8proc and sets up its build configuration using
+## nimterop.
+##
+## This file also builds and runs tsgen.nim to generate a nim friendly tree_sitter api.
 import os, strutils
 import nimterop/[cimport, build]
 
